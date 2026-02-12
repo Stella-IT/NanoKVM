@@ -1,20 +1,19 @@
 package direct
 
 import (
-	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
+
+	"NanoKVM-Server/middleware"
 )
 
 var (
 	streamer = newStreamer()
 	upgrader = websocket.Upgrader{
-		CheckOrigin: func(r *http.Request) bool {
-			return true
-		},
+		CheckOrigin: middleware.CheckWebSocketOrigin,
 	}
 )
 

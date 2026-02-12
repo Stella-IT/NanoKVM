@@ -2,7 +2,7 @@ package webrtc
 
 import (
 	"NanoKVM-Server/config"
-	"net/http"
+	"NanoKVM-Server/middleware"
 	"sync"
 	"time"
 
@@ -15,9 +15,7 @@ import (
 
 var (
 	upgrader = websocket.Upgrader{
-		CheckOrigin: func(r *http.Request) bool {
-			return true
-		},
+		CheckOrigin: middleware.CheckWebSocketOrigin,
 	}
 	globalManager *WebRTCManager
 	managerOnce   sync.Once
