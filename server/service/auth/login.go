@@ -24,12 +24,14 @@ func (s *Service) Login(c *gin.Context) {
 	}
 
 	if err := proto.ParseFormRequest(c, &req); err != nil {
+		middleware.RecordLoginFailure(c.ClientIP())
 		time.Sleep(3 * time.Second)
 		rsp.ErrRsp(c, -1, "invalid parameters")
 		return
 	}
 
 	if ok := CompareAccount(req.Username, req.Password); !ok {
+		middleware.RecordLoginFailure(c.ClientIP())
 		time.Sleep(2 * time.Second)
 		rsp.ErrRsp(c, -2, "invalid username or password")
 		return
@@ -41,6 +43,8 @@ func (s *Service) Login(c *gin.Context) {
 		rsp.ErrRsp(c, -3, "generate token failed")
 		return
 	}
+
+	middleware.ResetLoginAttempts(c.ClientIP())
 
 	rsp.OkRspWithData(c, &proto.LoginRsp{
 		Token: token,

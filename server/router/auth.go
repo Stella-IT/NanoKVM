@@ -10,7 +10,7 @@ import (
 func authRouter(r *gin.Engine) {
 	service := auth.NewService()
 
-	r.POST("/api/auth/login", service.Login) // login
+	r.POST("/api/auth/login", middleware.LoginRateLimit(), service.Login) // login
 
 	api := r.Group("/api").Use(middleware.CheckToken())
 
