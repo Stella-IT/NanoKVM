@@ -2,6 +2,7 @@ package network
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"strings"
@@ -55,8 +56,15 @@ func (s *Service) ConnectWifiNoAuth(c *gin.Context) {
 	var req proto.ConnectWifiReq
 	var rsp proto.Response
 
-	// Check Wi-Fi configuration mode
+	// Only allow in AP mode from AP subnet clients
 	if !isSupported() || !isAPMode() {
+		time.Sleep(2 * time.Second)
+		rsp.ErrRsp(c, -1, "invalid mode")
+		return
+	}
+
+	if !isAPSubnetClient(c.ClientIP()) {
+		log.Warnf("wifi no-auth request from non-AP subnet: %s", c.ClientIP())
 		time.Sleep(2 * time.Second)
 		rsp.ErrRsp(c, -1, "invalid mode")
 		return
@@ -77,6 +85,25 @@ func (s *Service) ConnectWifiNoAuth(c *gin.Context) {
 
 	rsp.OkRsp(c)
 	log.Debugf("set wifi ap mode successfully")
+}
+
+// isAPSubnetClient checks if the client IP is from a local/private network.
+// In AP mode, NanoKVM creates a 10.x.x.0/24 subnet. This check ensures
+// the endpoint is only accessible from directly connected AP clients,
+// not from the wider network if the device is dual-homed.
+func isAPSubnetClient(clientIP string) bool {
+	ip := net.ParseIP(clientIP)
+	if ip == nil {
+		return false
+	}
+
+	if ip.IsLoopback() {
+		return true
+	}
+
+	// AP mode uses 10.x.x.0/24 subnets
+	_, apRange, _ := net.ParseCIDR("10.0.0.0/8")
+	return apRange.Contains(ip)
 }
 
 func (s *Service) ConnectWifi(c *gin.Context) {
