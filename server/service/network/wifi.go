@@ -154,16 +154,15 @@ func validateWifiInput(ssid string, password string) error {
 		return errors.New("invalid password length")
 	}
 
-	// Reject control characters and shell metacharacters to prevent
-	// command injection when these values are read by shell scripts.
+	// Reject control characters (null, newline, etc.) that could break
+	// file-based storage or wpa_supplicant config parsing.
+	// Shell metacharacters are intentionally allowed since S30wifi uses
+	// proper quoting: wpa_passphrase "$ssid" "$pass"
 	for _, s := range []string{ssid, password} {
 		for _, ch := range s {
 			if ch < 0x20 || ch == 0x7f {
-				return errors.New("input contains invalid characters")
+				return errors.New("input contains control characters")
 			}
-		}
-		if strings.ContainsAny(s, ";|&`$(){}\\\"'\n\r") {
-			return errors.New("input contains invalid characters")
 		}
 	}
 
