@@ -66,7 +66,6 @@ func run() {
 	if conf.Authentication == "disable" {
 		r.Use(cors.AllowAll())
 	}
-	r.Use(middleware.CSRFProtection())
 
 	router.Init(r)
 
