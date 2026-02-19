@@ -52,6 +52,10 @@ func (c *Client) Read() error {
 
 		log.Debugf("received message %d: %v", messageType, data)
 
+		if len(data) == 0 {
+			continue
+		}
+
 		switch data[0] {
 		case Heartbeat:
 			c.UpdateHeartbeat()
