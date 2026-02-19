@@ -87,23 +87,50 @@ func (s *Service) ConnectWifiNoAuth(c *gin.Context) {
 	log.Debugf("set wifi ap mode successfully")
 }
 
-// isAPSubnetClient checks if the client IP is from a local/private network.
-// In AP mode, NanoKVM creates a 10.x.x.0/24 subnet. This check ensures
-// the endpoint is only accessible from directly connected AP clients,
-// not from the wider network if the device is dual-homed.
+// isAPSubnetClient checks if the client IP belongs to the AP subnet configured
+// on the device (wlan0). The AP network is dynamically determined from the
+// interface address set by the AP start script.
 func isAPSubnetClient(clientIP string) bool {
-	ip := net.ParseIP(clientIP)
-	if ip == nil {
-		return false
-	}
+    ip := net.ParseIP(strings.TrimSpace(clientIP))
+    if ip == nil {
+        return false
+    }
 
-	if ip.IsLoopback() {
-		return true
-	}
+    if ip.IsLoopback() {
+        return true
+    }
 
-	// AP mode uses 10.x.x.0/24 subnets
-	_, apRange, _ := net.ParseCIDR("10.0.0.0/8")
-	return apRange.Contains(ip)
+    apNet := getAPSubnet()
+    if apNet == nil {
+        return false
+    }
+
+    return apNet.Contains(ip)
+}
+
+// getAPSubnet returns the IPv4 subnet assigned to wlan0 (in AP mode).
+func getAPSubnet() *net.IPNet {
+    if !isAPMode() {
+        return nil
+    }
+
+    iface, err := net.InterfaceByName("wlan0")
+    if err != nil {
+        return nil
+    }
+
+    addrs, err := iface.Addrs()
+    if err != nil {
+        return nil
+    }
+    for _, a := range addrs {
+        if ipnet, ok := a.(*net.IPNet); ok {
+            if ip4 := ipnet.IP.To4(); ip4 != nil {
+                return &net.IPNet{IP: ip4.Mask(ipnet.Mask), Mask: ipnet.Mask}
+            }
+        }
+    }
+    return nil
 }
 
 func (s *Service) ConnectWifi(c *gin.Context) {
