@@ -174,15 +174,11 @@ void new_app_init(void)
 void build_complete_resolv(void)
 {
 	FILE *fp = NULL;
-	// fp = fopen("/boot/resolv.conf", "w+");
 	fp = fopen("/boot/resolv.conf", "w");
-	// 阿里: 223.5.5.5
-	// 腾讯: 119.29.29.29
-	fprintf(fp, "nameserver 192.168.0.1\nnameserver 8.8.4.4\nnameserver 8.8.8.8\nnameserver 114.114.114.114\nnameserver 119.29.29.29\nnameserver 223.5.5.5");
+	fprintf(fp, "nameserver 1.1.1.1\nnameserver 8.8.8.8\nnameserver 8.8.4.4\n");
 	fclose(fp);
-	system("rm -rf /etc/resolv.conf");
-	system("cp -vf /etc/resolv.conf /etc/resolv.conf.old");
-	system("cp -vf /boot/resolv.conf /etc/resolv.conf");
+	system("cp -f /etc/resolv.conf /etc/resolv.conf.old 2>/dev/null");
+	system("cp -f /boot/resolv.conf /etc/resolv.conf");
 }
 
 void new_img_init(void)
