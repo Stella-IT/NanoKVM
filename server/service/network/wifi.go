@@ -224,17 +224,17 @@ func validateWifiInput(ssid string, password string) error {
 }
 
 func connect(ssid string, password string) error {
-	if err := os.WriteFile(WiFiSSID, []byte(ssid), 0o644); err != nil {
+    if err := os.WriteFile(WiFiSSID, []byte(ssid), 0o600); err != nil {
 		log.Errorf("failed to save wifi ssid: %s", err)
 		return err
 	}
 
-	if err := os.WriteFile(WiFiPasswd, []byte(password), 0o644); err != nil {
+    if err := os.WriteFile(WiFiPasswd, []byte(password), 0o600); err != nil {
 		log.Errorf("failed to save wifi password: %s", err)
 		return err
 	}
 
-	if err := os.WriteFile(WiFiConnect, nil, 0o644); err != nil {
+    if err := os.WriteFile(WiFiConnect, nil, 0o600); err != nil {
 		log.Errorf("failed to connect wifi: %s", err)
 		return err
 	}

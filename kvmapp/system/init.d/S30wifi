@@ -65,7 +65,7 @@ start() {
         mv /boot/wifi.pass /etc/kvm/wifi.pass
 
         chown root:root /etc/kvm/wifi.ssid /etc/kvm/wifi.pass
-        chmod 644 /etc/kvm/wifi.ssid /etc/kvm/wifi.pass
+        chmod 600 /etc/kvm/wifi.ssid /etc/kvm/wifi.pass
     fi
     if [ -e /etc/kvm/wifi.ssid ]; then
         ssid=$(cat /etc/kvm/wifi.ssid)
