@@ -108,15 +108,16 @@ func create() {
 }
 
 // Validate the configuration. This is to ensure compatibility with earlier versions.
+// Instead of deleting the user's config file (which loses settings like authentication),
+// set default values for any missing fields.
 func validate() error {
-	if viper.GetInt("port.http") > 0 && viper.GetInt("port.https") > 0 {
-		return nil
+	if viper.GetInt("port.http") <= 0 {
+		viper.Set("port.http", defaultConfig.Port.Http)
+		log.Println("port.http was missing or invalid, using default")
 	}
-
-	_ = os.Remove("/etc/kvm/server.yaml")
-	log.Println("delete empty configuration file")
-
-	create()
-
-	return readByDefault()
+	if viper.GetInt("port.https") <= 0 {
+		viper.Set("port.https", defaultConfig.Port.Https)
+		log.Println("port.https was missing or invalid, using default")
+	}
+	return nil
 }
