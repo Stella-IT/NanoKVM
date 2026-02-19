@@ -3,6 +3,7 @@ package network
 import (
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"strings"
@@ -56,8 +57,15 @@ func (s *Service) ConnectWifiNoAuth(c *gin.Context) {
 	var req proto.ConnectWifiReq
 	var rsp proto.Response
 
-	// Check Wi-Fi configuration mode
+	// Only allow in AP mode from AP subnet clients
 	if !isSupported() || !isAPMode() {
+		time.Sleep(2 * time.Second)
+		rsp.ErrRsp(c, -1, "invalid mode")
+		return
+	}
+
+	if !isAPSubnetClient(c.ClientIP()) {
+		log.Warnf("wifi no-auth request from non-AP subnet: %s", c.ClientIP())
 		time.Sleep(2 * time.Second)
 		rsp.ErrRsp(c, -1, "invalid mode")
 		return
@@ -83,6 +91,52 @@ func (s *Service) ConnectWifiNoAuth(c *gin.Context) {
 
 	rsp.OkRsp(c)
 	log.Debugf("set wifi ap mode successfully")
+}
+
+// isAPSubnetClient checks if the client IP belongs to the AP subnet configured
+// on the device (wlan0). The AP network is dynamically determined from the
+// interface address set by the AP start script.
+func isAPSubnetClient(clientIP string) bool {
+    ip := net.ParseIP(strings.TrimSpace(clientIP))
+    if ip == nil {
+        return false
+    }
+
+    if ip.IsLoopback() {
+        return true
+    }
+
+    apNet := getAPSubnet()
+    if apNet == nil {
+        return false
+    }
+
+    return apNet.Contains(ip)
+}
+
+// getAPSubnet returns the IPv4 subnet assigned to wlan0 (in AP mode).
+func getAPSubnet() *net.IPNet {
+    if !isAPMode() {
+        return nil
+    }
+
+    iface, err := net.InterfaceByName("wlan0")
+    if err != nil {
+        return nil
+    }
+
+    addrs, err := iface.Addrs()
+    if err != nil {
+        return nil
+    }
+    for _, a := range addrs {
+        if ipnet, ok := a.(*net.IPNet); ok {
+            if ip4 := ipnet.IP.To4(); ip4 != nil {
+                return &net.IPNet{IP: ip4.Mask(ipnet.Mask), Mask: ipnet.Mask}
+            }
+        }
+    }
+    return nil
 }
 
 func (s *Service) ConnectWifi(c *gin.Context) {
