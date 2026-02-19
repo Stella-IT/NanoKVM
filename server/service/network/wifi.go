@@ -1,6 +1,7 @@
 package network
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -68,6 +69,11 @@ func (s *Service) ConnectWifiNoAuth(c *gin.Context) {
 		return
 	}
 
+	if err := validateWifiInput(req.Ssid, req.Password); err != nil {
+		rsp.ErrRsp(c, -2, err.Error())
+		return
+	}
+
 	if err := connect(req.Ssid, req.Password); err != nil {
 		rsp.ErrRsp(c, -3, "failed to connect wifi")
 		return
@@ -85,6 +91,11 @@ func (s *Service) ConnectWifi(c *gin.Context) {
 
 	if err := proto.ParseFormRequest(c, &req); err != nil {
 		rsp.ErrRsp(c, -1, "invalid parameters")
+		return
+	}
+
+	if err := validateWifiInput(req.Ssid, req.Password); err != nil {
+		rsp.ErrRsp(c, -1, err.Error())
 		return
 	}
 
@@ -133,6 +144,29 @@ func (s *Service) DisconnectWifi(c *gin.Context) {
 
 	rsp.OkRsp(c)
 	log.Debugf("stop wifi successfully")
+}
+
+func validateWifiInput(ssid string, password string) error {
+	if len(ssid) == 0 || len(ssid) > 32 {
+		return errors.New("invalid SSID length")
+	}
+	if len(password) > 0 && (len(password) < 8 || len(password) > 63) {
+		return errors.New("invalid password length")
+	}
+
+	// Reject control characters (null, newline, etc.) that could break
+	// file-based storage or wpa_supplicant config parsing.
+	// Shell metacharacters are intentionally allowed since S30wifi uses
+	// proper quoting: wpa_passphrase "$ssid" "$pass"
+	for _, s := range []string{ssid, password} {
+		for _, ch := range s {
+			if ch < 0x20 || ch == 0x7f {
+				return errors.New("input contains control characters")
+			}
+		}
+	}
+
+	return nil
 }
 
 func connect(ssid string, password string) error {
