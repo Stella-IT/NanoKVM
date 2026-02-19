@@ -1,6 +1,7 @@
 #!/bin/sh
 
 . /etc/profile
+. /kvmapp/system/init.d/net-common.sh 2>/dev/null || true
 
 APFLAG_FILE=/tmp/wifiap
 
@@ -49,9 +50,7 @@ gen_dnsmasq_conf() {
 }
 
 start() {
-    HOSTNAME=$(cat /etc/hostname 2>/dev/null | head -1)
-    HOSTNAME_OPT=""
-    [ -n "$HOSTNAME" ] && HOSTNAME_OPT="-x hostname:$HOSTNAME"
+    HOSTNAME_OPT="$(build_udhcpc_hostname_opt)"
 
     echo "wifi mode: sta"
     ssid=""
