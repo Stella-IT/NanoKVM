@@ -1,6 +1,7 @@
 #!/bin/sh
 
 RESERVE_INET="192.168.90.1/22"
+. /kvmapp/system/init.d/net-common.sh 2>/dev/null || true
 
 clean_line() {
     echo "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s/\r//g'
@@ -19,9 +20,7 @@ EOF
 }
 
 start() {
-    HOSTNAME=$(cat /etc/hostname 2>/dev/null | head -1)
-    HOSTNAME_OPT=""
-    [ -n "$HOSTNAME" ] && HOSTNAME_OPT="-x hostname:$HOSTNAME"
+    HOSTNAME_OPT="$(build_udhcpc_hostname_opt)"
 
     ip addr flush dev eth0
     if [ -e /boot/eth.nodhcp ]; then

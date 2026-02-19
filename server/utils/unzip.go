@@ -1,36 +1,48 @@
 package utils
 
 import (
-	"archive/zip"
-	"io"
-	"os"
-	"path/filepath"
+    "archive/zip"
+    "errors"
+    "io"
+    "os"
+    "path/filepath"
+    "strings"
 )
 
 func Unzip(filename string, dest string) error {
-	r, err := zip.OpenReader(filename)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = r.Close()
-	}()
+    r, err := zip.OpenReader(filename)
+    if err != nil {
+        return err
+    }
+    defer func() {
+        _ = r.Close()
+    }()
 
-	for _, f := range r.File {
-		dstPath := filepath.Join(dest, filepath.Clean("/"+f.Name))
-		if f.FileInfo().IsDir() {
-			err = os.MkdirAll(dstPath, 0o755)
-			if err != nil {
-				return err
-			}
-		} else {
-			err = unzipFile(dstPath, f)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+    destClean := filepath.Clean(dest)
+    destWithSep := destClean + string(os.PathSeparator)
+    for _, f := range r.File {
+        cleaned := filepath.Clean(f.Name)
+        if filepath.IsAbs(cleaned) || strings.HasPrefix(cleaned, "..") {
+            return errors.New("zip: unsafe path detected")
+        }
+        dstPath := filepath.Join(destClean, cleaned)
+        pathClean := filepath.Clean(dstPath)
+        if !(pathClean == destClean || strings.HasPrefix(pathClean, destWithSep)) {
+            return errors.New("zip: path escapes destination")
+        }
+        if f.FileInfo().IsDir() {
+            err = os.MkdirAll(pathClean, 0o755)
+            if err != nil {
+                return err
+            }
+        } else {
+            err = unzipFile(pathClean, f)
+            if err != nil {
+                return err
+            }
+        }
+    }
+    return nil
 }
 
 func unzipFile(dstPath string, f *zip.File) error {
