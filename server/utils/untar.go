@@ -3,6 +3,7 @@ package utils
 import (
 	"archive/tar"
 	"compress/gzip"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -33,6 +34,8 @@ func UnTarGz(srcFile string, destDir string) (string, error) {
 	tr := tar.NewReader(gr)
 
 	targetFile := ""
+	destClean := filepath.Clean(destDir)
+	destWithSep := destClean + string(os.PathSeparator)
 	for {
 		header, err := tr.Next()
 
@@ -44,23 +47,34 @@ func UnTarGz(srcFile string, destDir string) (string, error) {
 			return "", err
 		}
 
+		// sanitize path: no absolute paths or parent traversal
+		cleaned := filepath.Clean(header.Name)
+		if filepath.IsAbs(cleaned) || strings.HasPrefix(cleaned, "..") {
+			return "", errors.New("tar: unsafe path detected")
+		}
+
+		// determine top-level target dir once
 		if targetFile == "" {
-			parts := strings.Split(header.Name, "/")
+			parts := strings.Split(cleaned, string(os.PathSeparator))
 			if len(parts) > 0 {
-				targetFile = filepath.Join(destDir, parts[0])
+				targetFile = filepath.Join(destClean, parts[0])
 			}
 		}
 
-		filename := filepath.Join(destDir, header.Name)
+		filename := filepath.Join(destClean, cleaned)
+		nameClean := filepath.Clean(filename)
+		if !(nameClean == destClean || strings.HasPrefix(nameClean, destWithSep)) {
+			return "", errors.New("tar: path escapes destination")
+		}
 
 		switch header.Typeflag {
 		case tar.TypeDir:
-			if err := os.MkdirAll(filename, os.FileMode(header.Mode)); err != nil {
+			if err := os.MkdirAll(nameClean, os.FileMode(header.Mode)); err != nil {
 				return "", err
 			}
 
 		case tar.TypeReg:
-			file, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
+			file, err := os.OpenFile(nameClean, os.O_CREATE|os.O_RDWR|os.O_TRUNC, os.FileMode(header.Mode))
 			if err != nil {
 				return "", err
 			}
@@ -71,10 +85,9 @@ func UnTarGz(srcFile string, destDir string) (string, error) {
 			}
 			_ = file.Close()
 
-		case tar.TypeSymlink:
-			if err := os.Symlink(header.Linkname, filename); err != nil {
-				return "", err
-			}
+		case tar.TypeSymlink, tar.TypeLink:
+			// do not allow links in update archives
+			return "", errors.New("tar: links are not allowed in archive")
 		}
 	}
 
