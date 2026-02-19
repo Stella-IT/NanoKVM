@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -14,6 +16,12 @@ import (
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 )
+
+var httpClient = &http.Client{
+	Timeout: 30 * time.Second,
+}
+
+var validFilename = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 
 type Latest struct {
 	Version string `json:"version"`
@@ -57,7 +65,7 @@ func getLatest() (*Latest, error) {
 
 	url := fmt.Sprintf("%s/latest.json?now=%d", baseURL, time.Now().Unix())
 
-	resp, err := http.Get(url)
+	resp, err := httpClient.Get(url)
 	if err != nil {
 		log.Debugf("failed to request version: %v", err)
 		return nil, err
@@ -81,6 +89,16 @@ func getLatest() (*Latest, error) {
 	if err := json.Unmarshal(body, &latest); err != nil {
 		log.Errorf("failed to unmarshal response: %s", err)
 		return nil, err
+	}
+
+	// Validate filename to prevent path traversal attacks
+	if !validFilename.MatchString(latest.Name) || strings.Contains(latest.Name, "..") {
+		log.Errorf("invalid filename in update metadata: %s", latest.Name)
+		return nil, fmt.Errorf("invalid filename: %s", latest.Name)
+	}
+	if filepath.Base(latest.Name) != latest.Name {
+		log.Errorf("path traversal detected in update metadata: %s", latest.Name)
+		return nil, fmt.Errorf("invalid filename: %s", latest.Name)
 	}
 
 	latest.Url = fmt.Sprintf("%s/%s", baseURL, latest.Name)

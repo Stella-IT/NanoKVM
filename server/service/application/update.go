@@ -64,6 +64,19 @@ func update() error {
 		return err
 	}
 
+	// verify file size
+	if latest.Size > 0 {
+		info, err := os.Stat(target)
+		if err != nil {
+			log.Errorf("failed to stat downloaded file: %s", err)
+			return err
+		}
+		if uint(info.Size()) != latest.Size {
+			log.Errorf("file size mismatch: expected %d, got %d", latest.Size, info.Size())
+			return fmt.Errorf("file size mismatch")
+		}
+	}
+
 	// check sha512
 	if err := checksum(target, latest.Sha512); err != nil {
 		log.Errorf("check sha512 failed: %s", err)
