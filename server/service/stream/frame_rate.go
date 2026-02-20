@@ -39,11 +39,13 @@ func GetFrameRateCounter() *FrameRateCounter {
 
 				counter.mutex.Unlock()
 
-				data := fmt.Sprintf("%d", counter.fps)
-				err := os.WriteFile("/kvmapp/kvm/now_fps", []byte(data), 0o666)
-				if err != nil {
-					log.Errorf("failed to write fps: %s", err)
-				}
+                // ensure runtime dir exists under tmpfs
+                _ = os.MkdirAll("/tmp/kvm", 0o755)
+                data := fmt.Sprintf("%d", counter.fps)
+                err := os.WriteFile("/tmp/kvm/now_fps", []byte(data), 0o666)
+                if err != nil {
+                    log.Errorf("failed to write fps: %s", err)
+                }
 			}
 		}()
 	})
